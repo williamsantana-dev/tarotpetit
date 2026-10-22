@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Oráculo Lenormand — Baralho Cigano (Petit Lenormand)</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tipografia Editorial E-Paper -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400;1,600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            title: ['Cinzel', 'serif'],
+            serif: ['"Cormorant Garamond"', 'serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            paper: '#f4f1ea',
+            'paper-dark': '#e7e2d5',
+            'paper-accent': '#dcd5c4',
+            ink: '#181715',
+            'ink-muted': '#57534a',
+            'ink-faint': '#8a8477',
+          },
+          boxShadow: {
+            'epaper': '4px 4px 0px #181715',
+            'epaper-lg': '6px 6px 0px #181715',
+            'epaper-sm': '2px 2px 0px #181715',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Estética E-Paper: Papel Envelhecido */
+    body {
+      background-color: #f4f1ea;
+      color: #181715;
+      -webkit-font-smoothing: antialiased;
+      background-image: radial-gradient(#d5cebe 0.85px, transparent 0.85px);
+      background-size: 14px 14px;
+    }
+
+    /* ==========================================================================
+       CORREÇÃO ESTRITA DO BUG DE FLIP 3D (SEM BLEED-THROUGH / ESPELHAMENTO)
+       ========================================================================== */
+    .card-scene {
+      perspective: 1200px;
+    }
+    .card-flip {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-style: preserve-3d;
+    }
+    .card-flip.is-flipped {
+      transform: rotateY(180deg);
+    }
+    .card-face {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 6px;
+      transition: opacity 0.01s linear 0.28s, visibility 0.01s linear 0.28s;
+    }
+    .card-face-front {
+      transform: rotateY(0deg) translateZ(1px);
+      opacity: 1;
+      visibility: visible;
+      z-index: 2;
+    }
+    .card-face-back {
+      transform: rotateY(180deg) translateZ(1px);
+      opacity: 0;
+      visibility: hidden;
+      z-index: 1;
+    }
+    /* Quando a carta é virada (.is-flipped), o verso desaparece 100% na metade do giro (0.28s) e a frente aparece 100% */
+    .card-flip.is-flipped .card-face-front {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .card-flip.is-flipped .card-face-back {
+      opacity: 1;
+      visibility: visible;
+      z-index: 2;
+    }
+
+    /* Padrão Geométrico Tradicional do Verso */
+    .lenormand-back {
+      background-color: #e7e2d5;
+      background-image: 
+        radial-gradient(#181715 1px, transparent 1px),
+        radial-gradient(#181715 1px, #f4f1ea 1px);
+      background-size: 12px 12px;
+      background-position: 0 0, 6px 6px;
+    }
+
+    /* Filtro de Tinta Eletrônica (Sem mix-blend-mode para não achatar o 3D) */
+    body.epaper-mode .card-art-img {
+      filter: grayscale(100%) contrast(1.15) sepia(0.12);
+    }
+    body:not(.epaper-mode) .card-art-img {
+      filter: none;
+    }
+
+    /* Animação Suave de Revelação */
+    @keyframes eInkReveal {
+      0% { opacity: 0; transform: translateY(6px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .animate-eink {
+      animation: eInkReveal 0.35s ease-out forwards;
+    }
+
+    .epaper-border {
+      border: 2px solid #181715;
+    }
+  </style>
+</head>
+<body class="epaper-mode min-h-screen flex flex-col font-serif selection:bg-ink selection:text-paper pb-10">
+
+  <!-- CABEÇALHO COMPACTO E OTIMIZADO PARA MOBILE -->
+  <header class="border-b-2 border-ink py-2.5 px-3 sm:px-4 bg-paper/95 sticky top-0 z-40 backdrop-blur-xs">
+    <div class="max-w-4xl mx-auto flex flex-col gap-2.5">
+      
+      <!-- Linha 1: Marca + Chaveador de Tinta -->
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 border-2 border-ink bg-paper-dark flex items-center justify-center font-title text-sm font-bold shadow-epaper-sm">
+            ☸
+          </div>
+          <div>
+            <h1 class="font-title text-sm sm:text-base font-bold tracking-widest uppercase leading-none">Baralho Cigano</h1>
+            <p class="font-mono text-[9px] sm:text-[10px] text-ink-muted uppercase tracking-wider mt-0.5">Petit Lenormand • 36 Lâminas</p>
+          </div>
+        </div>
+
+        <!-- Botão Modo E-Paper vs Cores Originais -->
+        <button id="btn-ink-mode" onclick="toggleInkMode()" class="px-2.5 py-1 border-2 border-ink bg-paper-dark hover:bg-paper font-mono text-[10px] uppercase font-bold tracking-wider shadow-epaper-sm flex items-center gap-1.5 active:translate-x-0.5 active:translate-y-0.5 transition">
+          <span id="ink-mode-dot" class="w-2 h-2 rounded-full bg-ink inline-block"></span>
+          <span id="ink-mode-label">Tinta: E-Paper (P&B)</span>
+        </button>
+      </div>
+
+      <!-- Linha 2: Abas de Navegação -->
+      <nav class="flex border-2 border-ink bg-paper-dark p-0.5 font-title text-[11px] sm:text-xs tracking-wider uppercase shadow-epaper-sm w-full">
+        <button id="tab-btn-daily" onclick="switchTab('daily')" class="flex-1 py-1.5 font-bold bg-ink text-paper transition">
+          Carta do Dia
+        </button>
+        <button id="tab-btn-spread" onclick="switchTab('spread')" class="flex-1 py-1.5 font-bold text-ink hover:bg-paper transition">
+          Tríade (3 Cartas)
+        </button>
+        <button id="tab-btn-compendium" onclick="switchTab('compendium')" class="flex-1 py-1.5 font-bold text-ink hover:bg-paper transition">
+          Compêndio (36)
+        </button>
+      </nav>
+
+    </div>
+  </header>
+
+  <!-- CONTEÚDO PRINCIPAL -->
+  <main class="flex-grow max-w-4xl w-full mx-auto px-3.5 sm:px-4 pt-4 sm:pt-6">
+
+    <!-- ========================================================
+         ABA 1: CARTA DO DIA (DETERMINÍSTICA & ESTRITAMENTE OCULTA)
+         ======================================================== -->
+    <section id="tab-daily" class="space-y-5">
+      
+      <!-- Barra de Data Determinística -->
+      <div class="border-2 border-ink bg-paper-dark/70 p-2 text-center flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-mono tracking-wider shadow-epaper-sm">
+        <span class="text-ink-muted">☉ SINCRONICIDADE DIÁRIA:</span>
+        <span id="daily-date-display" class="font-bold underline text-ink">--/--/----</span>
+        <span class="text-ink-muted hidden sm:inline">•</span>
+        <span class="text-[10px] text-ink-muted">Imutável durante as 24h</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-5 sm:gap-8 items-start">
+        
+        <!-- Coluna da Lâmina Interativa -->
+        <div class="md:col-span-5 flex flex-col items-center">
+          <div class="card-scene w-60 sm:w-64 h-[390px] sm:h-[415px] cursor-pointer select-none" onclick="toggleDailyCard()">
+            <div id="daily-card-inner" class="card-flip shadow-epaper-lg">
+              
+              <!-- VERSO (Estado Inicial Visível: .card-face-front) -->
+              <div class="card-face card-face-front epaper-border bg-paper p-2 flex flex-col justify-between items-center">
+                <div class="w-full h-full border border-ink overflow-hidden relative flex flex-col justify-between items-center p-4 lenormand-back">
+                  <img src="https://marycusack.com/Decks/Images/Lenormand/NZ/ThelemaLenormand/zback.jpg" 
+                       referrerpolicy="no-referrer" alt="Verso da Carta" 
+                       class="card-art-img absolute inset-0 w-full h-full object-cover opacity-85"
+                       onerror="this.style.display='none'">
+                  <div class="relative z-10 bg-paper border border-ink px-2.5 py-0.5 font-mono text-[9px] uppercase tracking-widest shadow-epaper-sm">
+                    Petit Lenormand
+                  </div>
+                  <div class="relative z-10 bg-paper/95 border-2 border-ink p-4 flex flex-col items-center text-center max-w-[175px] shadow-epaper">
+                    <span class="text-2xl text-ink mb-1">🗝️</span>
+                    <span class="font-title text-xs font-bold uppercase tracking-wider text-ink">Lâmina do Dia</span>
+                    <div class="w-8 border-b border-ink my-1.5"></div>
+                    <span class="font-serif italic text-xs text-ink-muted">Toque na carta para revelar</span>
+                  </div>
+                  <div class="relative z-10 bg-paper border border-ink px-2.5 py-0.5 font-mono text-[9px] text-ink-muted shadow-epaper-sm">
+                    36 Arcanos
+                  </div>
+                </div>
+              </div>
+
+              <!-- FRENTE REVELADA (Visível apenas após o flip: .card-face-back) -->
+              <div class="card-face card-face-back epaper-border bg-paper p-2 flex flex-col justify-between">
+                <div class="flex justify-between items-center border-b border-ink pb-1 font-mono text-xs px-1">
+                  <span id="daily-card-id-badge" class="font-bold bg-paper-dark px-1.5 border border-ink">#--</span>
+                  <span id="daily-card-playing-badge" class="font-bold text-ink">--</span>
+                </div>
+                
+                <!-- Moldura da Ilustração Real -->
+                <div class="flex-grow my-1.5 bg-[#181715] border border-ink overflow-hidden relative flex items-center justify-center">
+                  <img id="daily-card-img" src="" alt="Lâmina do Dia" referrerpolicy="no-referrer"
+                       class="card-art-img w-full h-full object-cover">
+                </div>
+
+                <div class="border-t border-ink pt-1 text-center">
+                  <h3 id="daily-card-title-front" class="font-title text-sm font-bold tracking-wider uppercase text-ink leading-tight">--</h3>
+                  <span id="daily-card-polarity-front" class="font-mono text-[9px] uppercase text-ink-muted">--</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <p class="font-mono text-[10px] text-ink-muted mt-2.5 text-center">
+            Toque na lâmina para virar ou recolher
+          </p>
+        </div>
+
+        <!-- Coluna de Detalhes Textuais (100% Oculta até a Revelação) -->
+        <div class="md:col-span-7">
+          
+          <!-- Aviso Enquanto Fechada -->
+          <div id="daily-locked-box" class="epaper-border p-6 bg-paper-dark/60 text-center space-y-3 shadow-epaper">
+            <span class="text-3xl text-ink inline-block">☸</span>
+            <h3 class="font-title text-base sm:text-lg font-bold uppercase tracking-wider text-ink">Lâmina Oculta</h3>
+            <p class="font-serif text-sm sm:text-base text-ink-muted leading-relaxed max-w-sm mx-auto">
+              O conselho, a polaridade e os fundamentos espirituais do dia permanecem velados. Concentre-se e <strong>toque na carta</strong> para abrir a leitura.
+            </p>
+            <div class="pt-1">
+              <span class="inline-block border border-dashed border-ink px-3 py-1 font-mono text-[10px] uppercase tracking-wider bg-paper">
+                Aguardando revelação
+              </span>
+            </div>
+          </div>
+
+          <!-- Painel de Significado (Exibido SOMENTE após virar a carta) -->
+          <div id="daily-revealed-box" style="display: none;" class="epaper-border p-4 sm:p-6 bg-paper space-y-4 shadow-epaper animate-eink">
+            
+            <div class="border-b-2 border-ink pb-3 flex justify-between items-start gap-2">
+              <div>
+                <span id="daily-det-polarity" class="font-mono text-[10px] px-2 py-0.5 border border-ink font-bold uppercase bg-paper-dark">
+                  --
+                </span>
+                <h2 id="daily-det-name" class="font-title text-xl sm:text-2xl font-black uppercase text-ink mt-1.5 leading-tight">
+                  --
+                </h2>
+                <p id="daily-det-playing" class="font-mono text-xs text-ink-muted mt-0.5">
+                  Correspondência Cartomântica: --
+                </p>
+              </div>
+              <span id="daily-det-num" class="font-title text-2xl sm:text-3xl font-bold text-ink-faint">#--</span>
+            </div>
+
+            <!-- Palavras-Chave -->
+            <div>
+              <span class="font-mono text-[10px] uppercase font-bold tracking-wider text-ink-muted block mb-1.5">
+                Palavras-Chave & Eixos
+              </span>
+              <div id="daily-det-keywords" class="flex flex-wrap gap-1.5"></div>
+            </div>
+
+            <!-- Conselho do Dia -->
+            <div class="space-y-1">
+              <span class="font-mono text-[10px] uppercase font-bold tracking-wider text-ink-muted block">
+                Conselho Oracular do Dia
+              </span>
+              <p id="daily-det-message" class="font-serif italic text-base sm:text-lg text-ink bg-paper-dark/60 p-3 border-l-4 border-ink leading-relaxed">
+                --
+              </p>
+            </div>
+
+            <!-- Fundamento & Simbologia (Umbanda / Linha do Oriente) -->
+            <div class="border-t border-ink/30 pt-3 space-y-1">
+              <span class="font-mono text-[10px] uppercase font-bold tracking-wider text-ink-muted block">
+                Fundamento Simbólico & Linha do Oriente / Umbanda
+              </span>
+              <p id="daily-det-study" class="font-serif text-sm sm:text-base text-ink-muted leading-relaxed">
+                --
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================
+         ABA 2: TRÍADE DE 3 CARTAS (FRASE ORACULAR LENORMAND)
+         ======================================================== -->
+    <section id="tab-spread" class="hidden space-y-5">
+      
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b-2 border-ink pb-3">
+        <div>
+          <h2 class="font-title text-base sm:text-xl font-bold uppercase tracking-wider text-ink">Tríade Combinatória Cigana</h2>
+          <p class="font-serif italic text-xs sm:text-sm text-ink-muted">
+            Toque em cada lâmina para revelar: 1. Tema/Sujeito • 2. Ação/Influência • 3. Desfecho/Conselho
+          </p>
+        </div>
+        <button onclick="drawNewTriad()" class="w-full sm:w-auto px-4 py-2 border-2 border-ink bg-paper font-title text-xs font-bold uppercase tracking-wider hover:bg-paper-dark shadow-epaper-sm transition active:translate-x-0.5 active:translate-y-0.5">
+          ↻ Nova Tiragem
+        </button>
+      </div>
+
+      <!-- Grid das 3 Lâminas -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-1">
+        
+        <!-- Posição 1 -->
+        <div class="flex flex-col items-center space-y-2.5">
+          <span class="font-mono text-xs uppercase font-bold border-b border-ink pb-0.5 text-center">
+            1. Tema / Sujeito
+          </span>
+          
+          <div class="card-scene w-52 h-[335px] cursor-pointer select-none" onclick="toggleTriadCard(0)">
+            <div id="triad-card-inner-0" class="card-flip shadow-epaper">
+              <!-- Verso (.card-face-front) -->
+              <div class="card-face card-face-front epaper-border bg-paper p-2 flex flex-col justify-between items-center lenormand-back overflow-hidden">
+                <img src="https://marycusack.com/Decks/Images/Lenormand/NZ/ThelemaLenormand/zback.jpg" 
+                     referrerpolicy="no-referrer" alt="" class="card-art-img absolute inset-0 w-full h-full object-cover opacity-80" onerror="this.style.display='none'">
+                <span class="relative z-10 bg-paper border border-ink px-1.5 py-0.5 font-mono text-[9px] uppercase">Casa I</span>
+                <div class="relative z-10 border-2 border-ink p-3 bg-paper/95 text-center shadow-epaper-sm">
+                  <span class="text-2xl text-ink">☸</span>
+                  <p class="font-title text-[10px] font-bold uppercase tracking-wider mt-1">Revelar Tema</p>
+                </div>
+                <span class="relative z-10 bg-paper border border-ink px-1.5 py-0.5 font-mono text-[9px] text-ink-muted">Oculta</span>
+              </div>
+              <!-- Frente Revelada (.card-face-back) -->
+              <div class="card-face card-face-back epaper-border bg-paper p-2 flex flex-col justify-between">
+                <div class="flex justify-between font-mono text-[10px] border-b border-ink pb-0.5">
+                  <span id="triad-num-0" class="font-bold">#--</span>
+                  <span id="triad-play-0" class="font-semibold">--</span>
+                </div>
+                <div class="flex-grow my-1 bg-[#181715] border border-ink overflow-hidden flex items-center justify-center">
+                  <img id="triad-img-0" src="" alt="" referrerpolicy="no-referrer" class="card-art-img w-full h-full object-cover">
+                </div>
+                <span id="triad-title-0" class="font-title text-xs font-bold uppercase text-center block truncate">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Caixa de Texto 1 (Oculta até virar) -->
+          <div id="triad-box-0" class="w-full epaper-border p-3 bg-paper text-xs min-h-[115px] shadow-epaper-sm flex items-center justify-center">
+            <span class="font-mono text-[11px] text-ink-faint italic text-center">Lâmina Oculta — Toque para revelar</span>
+          </div>
+        </div>
+
+        <!-- Posição 2 -->
+        <div class="flex flex-col items-center space-y-2.5">
+          <span class="font-mono text-xs uppercase font-bold border-b border-ink pb-0.5 text-center">
+            2. Ação / Influência
+          </span>
+          
+          <div class="card-scene w-52 h-[335px] cursor-pointer select-none" onclick="toggleTriadCard(1)">
+            <div id="triad-card-inner-1" class="card-flip shadow-epaper">
+              <!-- Verso (.card-face-front) -->
+              <div class="card-face card-face-front epaper-border bg-paper p-2 flex flex-col justify-between items-center lenormand-back overflow-hidden">
+                <img src="https://marycusack.com/Decks/Images/Lenormand/NZ/ThelemaLenormand/zback.jpg" 
+                     referrerpolicy="no-referrer" alt="" class="card-art-img absolute inset-0 w-full h-full object-cover opacity-80" onerror="this.style.display='none'">
+                <span class="relative z-10 bg-paper border border-ink px-1.5 py-0.5 font-mono text-[9px] uppercase">Casa II</span>
+                <div class="relative z-10 border-2 border-ink p-3 bg-paper/95 text-center shadow-epaper-sm">
+                  <span class="text-2xl text-ink">☸</span>
+                  <p class="font-title text-[10px] font-bold uppercase tracking-wider mt-1">Revelar Ação</p>
+                </div>
+                <span class="relative z-10 bg-paper border border-ink px-1.5 py-0.5 font-mono text-[9px] text-ink-muted">Oculta</span>
+              </div>
+              <!-- Frente Revelada (.card-face-back) -->
+              <div class="card-face card-face-back epaper-border bg-paper p-2 flex flex-col justify-between">
+                <div class="flex justify-between font-mono text-[10px] border-b border-ink pb-0.5">
+                  <span id="triad-num-1" class="font-bold">#--</span>
+                  <span id="triad-play-1" class="font-semibold">--</span>
+                </div>
+                <div class="flex-grow my-1 bg-[#181715] border border-ink overflow-hidden flex items-center justify-center">
+                  <img id="triad-img-1" src="" alt="" referrerpolicy="no-referrer" class="card-art-img w-full h-full object-cover">
+                </div>
+                <span id="triad-title-1" class="font-title text-xs font-bold uppercase text-center block truncate">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Caixa de Texto 2 (Oculta até virar) -->
+          <div id="triad-box-1" class="w-full epaper-border p-3 bg-paper text-xs min-h-[115px] shadow-epaper-sm flex items-center justify-center">
+            <span class="font-mono text-[11px] text-ink-faint italic text-center">Lâmina Oculta — Toque para revelar</span>
+          </div>
+        </div>
+
+        <!-- Posição 3 -->
+        <div class="flex flex-col items-center space-y-2.5">
+          <span class="font-mono text-xs uppercase font-bold border-b border-ink pb-0.5 text-center">
+            3. Desfecho / Conselho
+          </span>
+          
+          <div class="card-scene w-52 h-[335px] cursor-pointer select-none" onclick="toggleTriadCard(2)">
+            <div id="triad-card-inner-2" class="card-flip shadow-epaper">
+              <!-- Verso (.card-face-front) -->
+              <div class="card-face card-face-front epaper-border bg-paper p-2 flex flex-col justify-between items-center lenormand-back overflow-hidden">
+                <img src="https://marycusack.com/Decks/Images/Lenormand/NZ/ThelemaLenormand/zback.jpg" 
+                     referrerpolicy="no-referrer" alt="" class="card-art-img absolute inset-0 w-full h-full object-cover opacity-80" onerror="this.style.display='none'">
+                <span class="relative z-10 bg-paper border border-ink px-1.5 py-0.5 font-mono text-[9px] uppercase">Casa III</span>
+                <div class="relative z-10 border-2 border-ink p-3 bg-paper/95 text-center shadow-epaper-sm">
+                  <span class="text-2xl text-ink">☸</span>
+                  <p class="font-title text-[10px] font-bold uppercase tracking-wider mt-1">Revelar Desfecho</p>
+                </div>
+                <span class="relative z-10 bg-paper border border-ink px-1.5 py-0.5 font-mono text-[9px] text-ink-muted">Oculta</span>
+              </div>
+              <!-- Frente Revelada (.card-face-back) -->
+              <div class="card-face card-face-back epaper-border bg-paper p-2 flex flex-col justify-between">
+                <div class="flex justify-between font-mono text-[10px] border-b border-ink pb-0.5">
+                  <span id="triad-num-2" class="font-bold">#--</span>
+                  <span id="triad-play-2" class="font-semibold">--</span>
+                </div>
+                <div class="flex-grow my-1 bg-[#181715] border border-ink overflow-hidden flex items-center justify-center">
+                  <img id="triad-img-2" src="" alt="" referrerpolicy="no-referrer" class="card-art-img w-full h-full object-cover">
+                </div>
+                <span id="triad-title-2" class="font-title text-xs font-bold uppercase text-center block truncate">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Caixa de Texto 3 (Oculta até virar) -->
+          <div id="triad-box-2" class="w-full epaper-border p-3 bg-paper text-xs min-h-[115px] shadow-epaper-sm flex items-center justify-center">
+            <span class="font-mono text-[11px] text-ink-faint italic text-center">Lâmina Oculta — Toque para revelar</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Síntese Combinatória Automática (Aparece quando todas as 3 são reveladas) -->
+      <div id="triad-synthesis-box" style="display: none;" class="epaper-border p-4 bg-paper-dark/70 shadow-epaper animate-eink space-y-1.5">
+        <span class="font-mono text-[10px] uppercase font-bold tracking-wider text-ink block">
+          ✦ Síntese da Tríade Combinatória:
+        </span>
+        <p id="triad-synthesis-text" class="font-serif text-sm sm:text-base text-ink leading-relaxed"></p>
+      </div>
+
+    </section>
+
+    <!-- ========================================================
+         ABA 3: COMPÊNDIO DAS 36 LÂMINAS (DIRETÓRIO DIRETO)
+         ======================================================== -->
+    <section id="tab-compendium" class="hidden space-y-4">
+      
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b-2 border-ink pb-3">
+        <div>
+          <h2 class="font-title text-base sm:text-xl font-bold uppercase tracking-wider text-ink">Compêndio das 36 Lâminas</h2>
+          <p class="font-serif italic text-xs text-ink-muted">
+            Toque em qualquer lâmina para ampliar a arte e estudar seus fundamentos tradicionais
+          </p>
+        </div>
+        
+        <!-- Busca e Filtro de Polaridade -->
+        <div class="flex gap-2 w-full sm:w-auto">
+          <input type="text" id="compendium-search" oninput="filterCompendium()" placeholder="Buscar lâmina, naipe ou tema..." 
+                 class="flex-1 sm:w-48 px-2.5 py-1.5 epaper-border bg-paper text-xs font-mono placeholder:text-ink-faint focus:outline-none focus:bg-white shadow-epaper-sm">
+          <select id="compendium-filter-polarity" onchange="filterCompendium()" 
+                  class="px-2 py-1.5 epaper-border bg-paper font-mono text-xs uppercase focus:outline-none shadow-epaper-sm">
+            <option value="ALL">Todas (36)</option>
+            <option value="Positiva">Positivas</option>
+            <option value="Neutra">Neutras</option>
+            <option value="Negativa">Negativas</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Grid Responsivo das 36 Lâminas -->
+      <div id="compendium-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <!-- Renderizado via JS -->
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODAL DETALHADO DE ESTUDO DO COMPÊNDIO -->
+  <div id="modal-card" class="fixed inset-0 bg-ink/75 z-50 hidden items-center justify-center p-3 sm:p-4 backdrop-blur-xs" onclick="if(event.target===this) closeModal()">
+    <div class="epaper-border bg-paper max-w-lg w-full max-h-[92vh] overflow-y-auto p-4 sm:p-6 space-y-4 shadow-epaper-lg animate-eink">
+      
+      <div class="flex justify-between items-start border-b-2 border-ink pb-2.5">
+        <div>
+          <span id="modal-polarity" class="font-mono text-[10px] px-2 py-0.5 border border-ink uppercase font-bold bg-paper-dark">--</span>
+          <h3 id="modal-title" class="font-title text-xl sm:text-2xl font-bold uppercase text-ink mt-1">--</h3>
+          <p id="modal-playing" class="font-mono text-xs text-ink-muted">--</p>
+        </div>
+        <button onclick="closeModal()" class="w-8 h-8 epaper-border bg-paper hover:bg-ink hover:text-paper font-mono text-sm font-bold flex items-center justify-center transition">✕</button>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
+        <div class="w-44 h-64 epaper-border bg-[#181715] p-1 flex items-center justify-center shrink-0 shadow-epaper-sm overflow-hidden">
+          <img id="modal-img" src="" alt="" referrerpolicy="no-referrer" class="card-art-img w-full h-full object-cover">
+        </div>
+        <div class="space-y-3 w-full">
+          <div>
+            <span class="font-mono text-[10px] uppercase font-bold text-ink-muted block">Palavras-Chave</span>
+            <div id="modal-keywords" class="flex flex-wrap gap-1 mt-1"></div>
+          </div>
+          <div>
+            <span class="font-mono text-[10px] uppercase font-bold text-ink-muted block">Conselho Prático</span>
+            <p id="modal-message" class="font-serif italic text-sm sm:text-base text-ink bg-paper-dark/70 p-2.5 border-l-3 border-ink mt-1 leading-relaxed">--</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-ink/30 pt-3">
+        <span class="font-mono text-[10px] uppercase font-bold text-ink-muted block">Fundamento Simbólico & Linha do Oriente / Umbanda</span>
+        <p id="modal-study" class="font-serif text-sm sm:text-base text-ink-muted leading-relaxed mt-1">--</p>
+      </div>
+
+      <div class="border-t-2 border-ink pt-3 flex justify-end">
+        <button onclick="closeModal()" class="px-4 py-1.5 epaper-border bg-ink text-paper font-title text-xs uppercase tracking-wider font-bold hover:bg-ink/80 transition">
+          Fechar Ficha
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RODAPÉ -->
+  <footer class="max-w-4xl mx-auto w-full px-4 border-t border-ink/30 pt-4 mt-8 text-center text-[11px] font-mono text-ink-muted flex flex-col sm:flex-row justify-between items-center gap-1">
+    <span>Oráculo E-Paper • Petit Lenormand</span>
+    <span>36 Lâminas Tradicionais • Uso Estudantil & Oracular</span>
+  </footer>
+
+  <!-- ========================================================
+       BASE DE DADOS DAS 36 LÂMINAS & MOTOR JAVASCRIPT
+       ======================================================== -->
+  <script>
+    // Diretório Estático Direto verificado
+    const BASE_IMG_URL = "https://marycusack.com/Decks/Images/Lenormand/NZ/ThelemaLenormand/";
+
+    // Base Completa dos 36 Arcanos do Petit Lenormand
+    const LENORMAND_DECK = [
+      { id: 1, file: "Rider.jpg", name: "O Cavaleiro", playing: "9 de Copas", polarity: "Positiva", kw: ["Notícias", "Movimento rápido", "Início", "Mensageiro"], msg: "Notícias e respostas rápidas a caminho. Mantenha a mente desperta e prepare-se para agir.", study: "Na Linha do Oriente e tradição cigana, é o mensageiro das estradas (dialogando com a abertura de caminhos de Exu e Ogum). Representa o dinamismo que desata nós e traz novos ares." },
+      { id: 2, file: "Clover.jpg", name: "O Trevo", playing: "6 de Ouros", polarity: "Neutra", kw: ["Pequenos tropeços", "Sorte breve", "Ajuste", "Superação"], msg: "Pequenos contratempos passageiros que exigem jogo de cintura, seguidos por alívio rápido.", study: "Conhecido também como Os Obstáculos na escola brasileira. Não aponta grandes tragédias, mas provas cotidianas que testam a paciência antes de entregar uma bênção." },
+      { id: 3, file: "Ship.jpg", name: "O Navio", playing: "10 de Espadas", polarity: "Positiva", kw: ["Transição", "Viagens", "Novos horizontes", "Mudança gradual"], msg: "Mudanças seguras e graduais no horizonte. Confie na travessia e permita-se navegar por novas águas.", study: "Ligado à força marítima de Iemanjá e aos antigos mercadores do Oriente. Indica movimentação lenta mas constante, viagens físicas ou expansão da consciência." },
+      { id: 4, file: "House.jpg", name: "A Casa", playing: "Rei de Copas", polarity: "Positiva", kw: ["Família", "Base sólida", "Templo interior", "Proteção"], msg: "Fortaleça seu lar, seu corpo e sua estrutura íntima. Busque abrigo onde há segurança afetiva.", study: "Simboliza o próprio terreiro espiritual, o assentamento familiar, a ancestralidade e a guarda protetora do lar físico e astral." },
+      { id: 5, file: "Tree.jpg", name: "A Árvore", playing: "7 de Copas", polarity: "Positiva", kw: ["Saúde", "Vitalidade", "Raízes", "Crescimento firme"], msg: "Raízes profundas garantem frutos duradouros. Cuide da sua energia vital e respeite o tempo de maturação.", study: "Associada às matas de Oxóssi e aos mistérios de cura vegetal de Ossaim. Representa vitalidade biológica, ancestralidade e evolução contínua." },
+      { id: 6, file: "Clouds.jpg", name: "As Nuvens", playing: "Rei de Paus", polarity: "Negativa", kw: ["Dúvida mental", "Confusão passageira", "Incerteza", "Turbulência"], msg: "Visão temporariamente turva. Evite tomar decisões definitivas enquanto o vento não limpar o céu.", study: "Sob a regência dos ventos de Iansã, mostra pensamentos nublados e angústias que parecem maiores do que são, mas que logo se dissipam." },
+      { id: 7, file: "Snake.jpg", name: "A Cobra", playing: "Rainha de Paus", polarity: "Negativa", kw: ["Astúcia", "Prudência", "Falsidade", "Força telúrica"], msg: "Caminhe com cautela e discrição. Observe bem as intenções alheias e não exponha seus planos.", study: "No plano mundano alerta para inveja, traição e ciladas; no plano esotérico evoca a sabedoria de Oxumarê, a troca de pele e o poder curativo usado com inteligência." },
+      { id: 8, file: "Coffin.jpg", name: "O Caixão", playing: "9 de Ouros", polarity: "Negativa", kw: ["Fim de ciclo", "Transformação radical", "Desapego", "Renascimento"], msg: "O que cumpriu seu tempo precisa ser encerrado para que uma nova fase possa nascer.", study: "Regido pelas forças de transmutação de Obaluaê/Omolu. Não deve ser temido: representa a morte simbólica de padrões estagnados." },
+      { id: 9, file: "Bouquet.jpg", name: "O Buquê", playing: "Rainha de Espadas", polarity: "Positiva", kw: ["Alegria", "Presente", "Harmonia", "Gratidão"], msg: "Momento de contentamento, beleza e generosidade. Receba os presentes da vida de coração aberto.", study: "Associa-se às flores das águas doces de Oxum e à alegria das festas ciganas. Traz cura emocional, reconhecimento e harmonia." },
+      { id: 10, file: "Scythe.jpg", name: "A Foice", playing: "Valete de Ouros", polarity: "Negativa", kw: ["Corte abrupto", "Colheita", "Decisão cirúrgica", "Ruptura"], msg: "Um corte rápido e necessário se apresenta. Elimine o que faz mal e colha o que já amadureceu.", study: "Ferramenta de ceifa que lembra o fio da espada de Ogum: corta ilusões e demandas de forma direta para restaurar a ordem." },
+      { id: 11, file: "Whip.jpg", name: "O Chicote", playing: "Valete de Paus", polarity: "Negativa", kw: ["Tensão", "Conflito repetitivo", "Demanda", "Disciplina"], msg: "Controle a impulsividade e fuja de discussões desgastantes. Use sua força para ordenar, não para ferir.", study: "Na leitura espiritual, alerta para atritos energéticos, autossabotagem ou demandas astrais que pedem limpeza e firmeza." },
+      { id: 12, file: "Birds.jpg", name: "Os Pássaros", playing: "7 de Ouros", polarity: "Positiva", kw: ["Comunicação", "Diálogo", "Agitação alegre", "Parceria"], msg: "Conversas produtivas, encontros leves e trocas fraternas trazem movimento ao seu dia.", study: "Expressa a leveza do elemento Ar, os recados rápidos, a alegria do convívio a dois e o burburinho cotidiano que movimenta a vida." },
+      { id: 13, file: "Child.jpg", name: "A Criança", playing: "Valete de Espadas", polarity: "Positiva", kw: ["Pureza", "Novo começo", "Espontaneidade", "Confiança"], msg: "Olhe para a situação sem preconceitos. Um recomeço sincero e desarmado abrirá portas.", study: "Diretamente conectada à vibração pura da Ibejada (Erês) na Umbanda. Simboliza a verdade sem máscaras, a esperança e o renovar da fé." },
+      { id: 14, file: "Fox.jpg", name: "A Raposa", playing: "9 de Paus", polarity: "Negativa", kw: ["Estratégia", "Cautela", "Armadilha", "Observação"], msg: "Use sua inteligência estratégica. Observe o ambiente em silêncio antes de confiar plenamente.", study: "Ensina a prudência dos antigos viajantes: saber onde pisar, perceber interesses ocultos e agir com sagacidade sem perder a ética." },
+      { id: 15, file: "Bear.jpg", name: "O Urso", playing: "10 de Paus", polarity: "Negativa", kw: ["Poder", "Possessividade", "Ciúme", "Autodefesa"], msg: "Domine seus impulsos e proteja seu campo energético contra inveja ou controle excessivo.", study: "Representa forças instintivas densas: pode indicar tanto proteção feroz e vigor material quanto olho gordo e autoritarismo." },
+      { id: 16, file: "Stars.jpg", name: "A Estrela", playing: "6 de Copas", polarity: "Positiva", kw: ["Guia espiritual", "Intuição", "Destino luminoso", "Êxito"], msg: "Você está amparada por seus mentores. Confie na sua intuição e siga sua estrela guia.", study: "Símbolo máximo da Linha do Oriente, da estrela de cinco pontas e da luz de Oxalá iluminando a coroa mediúnica da consulente." },
+      { id: 17, file: "Stork.jpg", name: "A Cegonha", playing: "Rainha de Copas", polarity: "Positiva", kw: ["Renovação", "Surpresas boas", "Transição", "Fertilidade"], msg: "Novos ares chegam para quebrar a monotonia. Acolha as mudanças e renove seus hábitos.", study: "Ave migratória que anuncia novos ciclos, mudanças de casa ou de postura mental, sob a bênção renovadora das águas." },
+      { id: 18, file: "Dog.jpg", name: "O Cão", playing: "10 de Copas", polarity: "Positiva", kw: ["Lealdade", "Amizade fiel", "Guardião", "Apoio"], msg: "Conte com os aliados verdadeiros que caminham ao seu lado. A lealdade será seu abrigo.", study: "Representa os amigos fiéis no plano terreno e os guardiões espirituais que velam pela segurança de quem trabalha na luz." },
+      { id: 19, file: "Tower.jpg", name: "A Torre", playing: "6 de Espadas", polarity: "Neutra", kw: ["Recolhimento", "Introspecção", "Espiritualidade", "Estrutura"], msg: "Silencie o ruído externo e recolha-se em seu templo interior para enxergar mais longe.", study: "Diferente da Torre do Tarot, no Lenormand simboliza elevação, meditação solitária, sabedoria antiga e conexão com o alto." },
+      { id: 20, file: "Garden.jpg", name: "O Jardim", playing: "8 de Espadas", polarity: "Positiva", kw: ["Vida social", "Comunidade", "Colheita pública", "Expansão"], msg: "Saia do isolamento e compartilhe seus dons. O convívio e as trocas coletivas estão favorecidos.", study: "Representa o espaço coletivo, a tenda, o terreiro aberto à caridade e a lei da semeadura: colhemos no mundo o que plantamos." },
+      { id: 21, file: "Mountain.jpg", name: "A Montanha", playing: "8 de Paus", polarity: "Negativa", kw: ["Obstáculo firme", "Justiça divina", "Persistência", "Limite"], msg: "Um desafio exige calma, estratégia e retidão. Não force portas; escale com sabedoria.", study: "Consagrada à pedreira de Xangô. Mostra bloqueios que exigem maturidade, equilíbrio cármico e firmeza de caráter para serem transpostos." },
+      { id: 22, file: "Crossroads.jpg", name: "Os Caminhos", playing: "Rainha de Ouros", polarity: "Positiva", kw: ["Escolhas", "Encruzilhada", "Livre-arbítrio", "Alternativas"], msg: "Os caminhos estão abertos, mas a decisão pertence a você. Ouça seu coração e escolha seu rumo.", study: "A força viva das encruzilhadas e trilhas de Ogum e Exu: lembra que sempre há saída quando assumimos nosso livre-arbítrio." },
+      { id: 23, file: "Mice.jpg", name: "Os Ratos", playing: "7 de Paus", polarity: "Negativa", kw: ["Desgaste", "Perda de energia", "Estresse", "Cuidado"], msg: "Atenção aos pequenos drenos de energia e preocupações repetitivas. Preserve sua saúde e sua paz.", study: "Indica vampirismo energético, miasmas ou larvas astrais que pedem banhos de descarrego, defumação e limites claros." },
+      { id: 24, file: "Heart.jpg", name: "O Coração", playing: "Valete de Copas", polarity: "Positiva", kw: ["Amor sincero", "Entrega", "Compaixão", "Calor humano"], msg: "Coloque amor e verdade no que fizer hoje. O afeto genuíno dissolve qualquer dureza.", study: "Irradiação pura de Oxum: sentimentos nobres, caridade feita com alma, paixão pela vida e reconciliação." },
+      { id: 25, file: "Ring.jpg", name: "O Anel", playing: "Ás de Paus", polarity: "Positiva", kw: ["Aliança", "Compromisso", "Acordo firme", "União"], msg: "Parcerias leais e acordos bem firmados trazem força. Honre a palavra empenhada.", study: "Representa tanto uniões afetivas e profissionais quanto a aliança sagrada firmada entre o médium e sua egrégora espiritual." },
+      { id: 26, file: "Book.jpg", name: "O Livro", playing: "10 de Ouros", polarity: "Neutra", kw: ["Estudo", "Segredo", "Sabedoria oculta", "Mistério"], msg: "Aprofunde seus estudos e mantenha discrição. Nem tudo precisa ser revelado antes da hora.", study: "O grande livro dos mistérios oraculares. Convida ao estudo contínuo das tradições, à observação silenciosa e ao conhecimento iniciático." },
+      { id: 27, file: "Letter.jpg", name: "A Carta", playing: "7 de Espadas", polarity: "Neutra", kw: ["Comunicação escrita", "Notícia direta", "Documento", "Recado"], msg: "Um aviso formal, mensagem ou conversa direta trará esclarecimento para o que estava pendente.", study: "Mensagens objetivas que chegam às mãos da consulente, revelações claras e confirmações no plano material." },
+      { id: 28, file: "Gentleman.jpg", name: "O Cigano (O Homem)", playing: "Ás de Copas", polarity: "Neutra", kw: ["Polo ativo", "Racionalidade", "Figura masculina", "Direção"], msg: "Momento de agir com objetividade, firmeza e iniciativa diante das circunstâncias.", study: "Representa o consulente masculino, uma figura masculina importante na questão ou a própria energia yang de realização." },
+      { id: 29, file: "Lady.jpg", name: "A Cigana (A Mulher)", playing: "Ás de Espadas", polarity: "Neutra", kw: ["Intuição", "Sensibilidade", "Figura feminina", "Receptividade"], msg: "Confie na sua percepção sutil e sabedoria intuitiva para conduzir o momento.", study: "Representa a própria consulente/taróloga, uma mulher central na leitura ou a potência receptiva, intuitiva e mágica do feminino." },
+      { id: 30, file: "Lily.jpg", name: "Os Lírios", playing: "Rei de Espadas", polarity: "Positiva", kw: ["Paz interior", "Maturidade", "Harmonia", "Pureza"], msg: "Aja com serenidade e elevação moral. A paz de espírito é sua maior força hoje.", study: "Sintoniza com a sabedoria mansa dos Pretos Velhos e a alvura de Oxalá: paciência, ética, perdão e tranquilidade profunda." },
+      { id: 31, file: "Sun.jpg", name: "O Sol", playing: "Ás de Ouros", polarity: "Positiva", kw: ["Sucesso", "Clareza total", "Vitalidade", "Prosperidade"], msg: "Luz plena sobre seus caminhos! A verdade aparece, as forças se renovam e o êxito se manifesta.", study: "A grande fogueira cigana e o esplendor solar: afasta sombras, restaura o ânimo, ilumina o oráculo e abençoa com abundância." },
+      { id: 32, file: "Moon.jpg", name: "A Lua", playing: "8 de Copas", polarity: "Neutra", kw: ["Mediunidade", "Intuição profunda", "Reconhecimento", "Mistério"], msg: "Escute seus sonhos, pressentimentos e marés internas. Sua sensibilidade espiritual está aflorada.", study: "Regência dos mistérios noturnos, da magia cigana lunar e das águas profundas de Nanã e Iemanjá. Honra pelo trabalho espiritual." },
+      { id: 33, file: "Key.jpg", name: "A Chave", playing: "8 de Ouros", polarity: "Positiva", kw: ["Solução", "Caminho aberto", "Desfecho", "Segredo revelado"], msg: "A resposta e a saída estão em suas mãos. Tome a iniciativa para destrancar o que parecia fechado.", study: "Símbolo de resolução certeira na Linha do Oriente: nenhuma porta permanece trancada quando há consciência e ação justa." },
+      { id: 34, file: "Fish.jpg", name: "Os Peixes", playing: "Rei de Ouros", polarity: "Positiva", kw: ["Abundância", "Fluxo material", "Prosperidade", "Multiplicação"], msg: "Permita que a prosperidade circule com movimento e gratidão. Bons frutos materiais e energéticos.", study: "Representa a riqueza em movimento, a fartura das águas e a multiplicação dos recursos conquistados com trabalho digno." },
+      { id: 35, file: "Anchor.jpg", name: "A Âncora", playing: "9 de Espadas", polarity: "Positiva", kw: ["Estabilidade", "Segurança", "Firmeza de fé", "Porto seguro"], msg: "Suas bases estão firmes. Mantenha a constância em seus propósitos e confie no solo que você construiu.", study: "Firmeza espiritual inabalável, segurança profissional e o ponto de apoio onde o barco descansa após vencer a tormenta." },
+      { id: 36, file: "Cross.jpg", name: "A Cruz", playing: "6 de Paus", polarity: "Positiva", kw: ["Vitória pela fé", "Superação", "Missão cumprida", "Redenção"], msg: "Toda provação chega ao fim e se converte em vitória espiritual. Mantenha a fé inabalável.", study: "A síntese de Oxalá e dos Pretos Velhos: o ponto onde a matéria encontra o espírito, confirmando que a fé sustenta e garante o triunfo final." }
+    ];
+
+    function getCardImageUrl(card) {
+      return BASE_IMG_URL + card.file;
+    }
+
+    // ==========================================
+    // ESTADO DA APLICAÇÃO
+    // ==========================================
+    let dailyCard = null;
+    let isDailyFlipped = false;
+
+    let triadCards = [];
+    let triadFlipped = [false, false, false];
+
+    // Chaveador E-Paper P&B vs Cores Originais
+    function toggleInkMode() {
+      const body = document.body;
+      const label = document.getElementById('ink-mode-label');
+      const dot = document.getElementById('ink-mode-dot');
+      body.classList.toggle('epaper-mode');
+
+      if (body.classList.contains('epaper-mode')) {
+        label.textContent = 'Tinta: E-Paper (P&B)';
+        dot.className = 'w-2 h-2 rounded-full bg-ink inline-block';
+      } else {
+        label.textContent = 'Tinta: Cores Originais';
+        dot.className = 'w-2 h-2 rounded-full bg-amber-700 inline-block';
+      }
+    }
+
+    // Cálculo Hash Determinístico da Carta do Dia (YYYY-MM-DD local)
+    function getDailyIndex(total) {
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      let hash = 2166136261;
+      for (let i = 0; i < dateStr.length; i++) {
+        hash ^= dateStr.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return Math.abs(hash) % total;
+    }
+
+    // Inicialização da Carta do Dia (100% Oculta no início)
+    function setupDailyCard() {
+      const idx = getDailyIndex(LENORMAND_DECK.length);
+      dailyCard = LENORMAND_DECK[idx];
+      isDailyFlipped = false;
+
+      const now = new Date();
+      document.getElementById('daily-date-display').textContent = now.toLocaleDateString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+      });
+
+      // Garante estado inicial fechado e detalhes ocultos
+      document.getElementById('daily-card-inner').classList.remove('is-flipped');
+      document.getElementById('daily-revealed-box').style.display = 'none';
+      document.getElementById('daily-locked-box').style.display = 'block';
+
+      // Prepara face frontal oculta da carta
+      document.getElementById('daily-card-id-badge').textContent = `#${dailyCard.id}`;
+      document.getElementById('daily-card-playing-badge').textContent = dailyCard.playing;
+      document.getElementById('daily-card-title-front').textContent = dailyCard.name;
+      document.getElementById('daily-card-polarity-front').textContent = `Polaridade ${dailyCard.polarity}`;
+      document.getElementById('daily-card-img').src = getCardImageUrl(dailyCard);
+    }
+
+    function toggleDailyCard() {
+      if (!dailyCard) return;
+
+      const inner = document.getElementById('daily-card-inner');
+      const lockedBox = document.getElementById('daily-locked-box');
+      const revealedBox = document.getElementById('daily-revealed-box');
+
+      isDailyFlipped = !isDailyFlipped;
+
+      if (isDailyFlipped) {
+        inner.classList.add('is-flipped');
+
+        // Injeta os dados textuais apenas após revelar a carta
+        document.getElementById('daily-det-num').textContent = `#${dailyCard.id}`;
+        document.getElementById('daily-det-name').textContent = dailyCard.name;
+        document.getElementById('daily-det-polarity').textContent = `Polaridade ${dailyCard.polarity}`;
+        document.getElementById('daily-det-playing').textContent = `Correspondência Cartomântica: ${dailyCard.playing}`;
+        document.getElementById('daily-det-message').textContent = `"${dailyCard.msg}"`;
+        document.getElementById('daily-det-study').textContent = dailyCard.study;
+
+        const kwContainer = document.getElementById('daily-det-keywords');
+        kwContainer.innerHTML = dailyCard.kw.map(k => `
+          <span class="px-2 py-0.5 border border-ink text-xs font-mono bg-paper-dark uppercase font-semibold">${k}</span>
+        `).join('');
+
+        lockedBox.style.display = 'none';
+        revealedBox.style.display = 'block';
+      } else {
+        inner.classList.remove('is-flipped');
+        revealedBox.style.display = 'none';
+        lockedBox.style.display = 'block';
+      }
+    }
+
+    // ==========================================
+    // TRÍADE DE 3 CARTAS (FRASE ORACULAR)
+    // ==========================================
+    function drawNewTriad() {
+      const pool = [...LENORMAND_DECK];
+      // Embaralhamento Fisher-Yates
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      triadCards = pool.slice(0, 3);
+      triadFlipped = [false, false, false];
+
+      document.getElementById('triad-synthesis-box').style.display = 'none';
+
+      for (let i = 0; i < 3; i++) {
+        const card = triadCards[i];
+        const inner = document.getElementById(`triad-card-inner-${i}`);
+        inner.classList.remove('is-flipped');
+
+        document.getElementById(`triad-num-${i}`).textContent = `#${card.id}`;
+        document.getElementById(`triad-play-${i}`).textContent = card.playing;
+        document.getElementById(`triad-title-${i}`).textContent = card.name;
+        document.getElementById(`triad-img-${i}`).src = getCardImageUrl(card);
+
+        const box = document.getElementById(`triad-box-${i}`);
+        box.innerHTML = `<span class="font-mono text-[11px] text-ink-faint italic text-center">Lâmina Oculta — Toque para revelar</span>`;
+      }
+    }
+
+    function toggleTriadCard(index) {
+      if (!triadCards[index]) return;
+
+      const inner = document.getElementById(`triad-card-inner-${index}`);
+      const box = document.getElementById(`triad-box-${index}`);
+      const card = triadCards[index];
+
+      triadFlipped[index] = !triadFlipped[index];
+
+      if (triadFlipped[index]) {
+        inner.classList.add('is-flipped');
+        box.innerHTML = `
+          <div class="w-full space-y-1.5 animate-eink text-left">
+            <div class="flex justify-between items-center border-b border-ink/30 pb-1">
+              <span class="font-title font-bold text-xs uppercase text-ink">#${card.id} ${card.name}</span>
+              <span class="font-mono text-[9px] uppercase px-1.5 py-0.5 border border-ink bg-paper-dark font-bold">${card.polarity}</span>
+            </div>
+            <p class="font-serif italic text-xs sm:text-sm leading-snug text-ink">"${card.msg}"</p>
+            <div class="flex flex-wrap gap-1 pt-0.5">
+              ${card.kw.slice(0, 3).map(k => `<span class="text-[9px] font-mono border border-ink/50 px-1 bg-paper-dark/50">${k}</span>`).join('')}
+            </div>
+          </div>
+        `;
+      } else {
+        inner.classList.remove('is-flipped');
+        box.innerHTML = `<span class="font-mono text-[11px] text-ink-faint italic text-center">Lâmina Oculta — Toque para revelar</span>`;
+      }
+
+      updateTriadSynthesis();
+    }
+
+    function updateTriadSynthesis() {
+      const synthBox = document.getElementById('triad-synthesis-box');
+      const synthText = document.getElementById('triad-synthesis-text');
+
+      if (triadFlipped.every(Boolean)) {
+        const [c1, c2, c3] = triadCards;
+        synthText.innerHTML = `O tema central gira em torno de <strong>${c1.name}</strong> (${c1.kw[0].toLowerCase()}), movimentado pela força de <strong>${c2.name}</strong> (${c2.kw[0].toLowerCase()}), conduzindo ao desfecho ou conselho de <strong>${c3.name}</strong> (${c3.kw[0].toLowerCase()}).`;
+        synthBox.style.display = 'block';
+      } else {
+        synthBox.style.display = 'none';
+      }
+    }
+
+    // ==========================================
+    // COMPÊNDIO DAS 36 LÂMINAS
+    // ==========================================
+    function renderCompendiumCards(cards) {
+      const grid = document.getElementById('compendium-grid');
+      grid.innerHTML = cards.map(c => `
+        <div onclick="openModal(${c.id})" class="epaper-border p-2.5 bg-paper hover:bg-paper-dark cursor-pointer flex flex-col justify-between transition shadow-epaper-sm group active:translate-x-0.5 active:translate-y-0.5">
+          <div class="flex justify-between items-center text-[11px] font-mono border-b border-ink/30 pb-1">
+            <span class="font-bold">#${c.id}</span>
+            <span class="text-ink-muted">${c.playing}</span>
+          </div>
+          <div class="w-full aspect-[2/3] my-2 bg-[#181715] border border-ink overflow-hidden flex items-center justify-center">
+            <img src="${getCardImageUrl(c)}" alt="${c.name}" loading="lazy" referrerpolicy="no-referrer"
+                 class="card-art-img w-full h-full object-cover group-hover:scale-105 transition duration-300">
+          </div>
+          <div class="text-center pt-0.5">
+            <h4 class="font-title font-bold text-xs uppercase truncate text-ink">${c.name}</h4>
+            <span class="font-mono text-[10px] uppercase text-ink-muted">${c.polarity}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterCompendium() {
+      const query = document.getElementById('compendium-search').value.toLowerCase().trim();
+      const polarity = document.getElementById('compendium-filter-polarity').value;
+
+      const filtered = LENORMAND_DECK.filter(c => {
+        const matchesQuery = String(c.id).includes(query) ||
+                             c.name.toLowerCase().includes(query) ||
+                             c.playing.toLowerCase().includes(query) ||
+                             c.kw.some(k => k.toLowerCase().includes(query)) ||
+                             c.study.toLowerCase().includes(query);
+        const matchesPolarity = (polarity === 'ALL') || (c.polarity === polarity);
+        return matchesQuery && matchesPolarity;
+      });
+
+      renderCompendiumCards(filtered);
+    }
+
+    function openModal(id) {
+      const card = LENORMAND_DECK.find(c => c.id === id);
+      if (!card) return;
+
+      document.getElementById('modal-title').textContent = `#${card.id} — ${card.name}`;
+      document.getElementById('modal-polarity').textContent = `Polaridade ${card.polarity}`;
+      document.getElementById('modal-playing').textContent = `Correspondência no Baralho Comum: ${card.playing}`;
+      document.getElementById('modal-img').src = getCardImageUrl(card);
+      document.getElementById('modal-message').textContent = `"${card.msg}"`;
+      document.getElementById('modal-study').textContent = card.study;
+
+      const kwContainer = document.getElementById('modal-keywords');
+      kwContainer.innerHTML = card.kw.map(k => `
+        <span class="px-2 py-0.5 border border-ink text-xs font-mono bg-paper-dark uppercase font-semibold">${k}</span>
+      `).join('');
+
+      const modal = document.getElementById('modal-card');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('modal-card');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // ==========================================
+    // NAVEGAÇÃO ENTRE ABAS
+    // ==========================================
+    function switchTab(tabName) {
+      ['daily', 'spread', 'compendium'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-btn-${t}`);
+        btn.classList.remove('bg-ink', 'text-paper');
+        btn.classList.add('text-ink');
+      });
+
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+      activeBtn.classList.add('bg-ink', 'text-paper');
+      activeBtn.classList.remove('text-ink');
+
+      if (tabName === 'compendium') {
+        filterCompendium();
+      }
+    }
+
+    // Inicialização
+    window.addEventListener('DOMContentLoaded', () => {
+      setupDailyCard();
+      drawNewTriad();
+      renderCompendiumCards(LENORMAND_DECK);
+    });
+  </script>
+</body>
+</html>
